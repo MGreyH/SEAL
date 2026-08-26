@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import path from "path"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendReferenceEmail } from "@/lib/mailer"
+import { readStoredFile } from "@/lib/storage"
 
 const schema = z.object({ to: z.string().email() })
 
@@ -36,7 +36,10 @@ export async function POST(
       picName: reference.picName,
       registerDate: reference.registerDate,
       attachment: filePath
-        ? { filename: `${reference.refNumber.replace(/\//g, "-")}.pdf`, path: path.resolve(filePath) }
+        ? {
+            filename: `${reference.refNumber.replace(/\//g, "-")}.pdf`,
+            content: await readStoredFile(filePath),
+          }
         : undefined,
     })
   } catch (err) {

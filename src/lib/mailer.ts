@@ -16,7 +16,7 @@ export async function sendReferenceEmail(input: {
   title: string
   picName: string
   registerDate: Date
-  attachment?: { filename: string; path: string }
+  attachment?: { filename: string; content: Buffer }
 }) {
   const html = `
     <p>Dear ${input.picName},</p>

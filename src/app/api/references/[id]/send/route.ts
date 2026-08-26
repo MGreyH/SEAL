@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
-import path from "path"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendReferenceEmail } from "@/lib/mailer"
+import { readStoredFile } from "@/lib/storage"
 
 export async function POST(
   req: Request,
@@ -28,7 +28,10 @@ export async function POST(
       picName: reference.picName,
       registerDate: reference.registerDate,
       attachment: filePath
-        ? { filename: `${reference.refNumber.replace(/\//g, "-")}.pdf`, path: path.resolve(filePath) }
+        ? {
+            filename: `${reference.refNumber.replace(/\//g, "-")}.pdf`,
+            content: await readStoredFile(filePath),
+          }
         : undefined,
     })
   } catch (err) {
