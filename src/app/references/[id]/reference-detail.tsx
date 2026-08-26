@@ -16,8 +16,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { PositionPicker, type StampFont } from "@/components/references/position-picker"
+import { PositionPicker, type StampFont, type StampType } from "@/components/references/position-picker"
 import { Eye, MessageCircle, Send, Trash2 } from "lucide-react"
+
+type CarriedInsert = {
+  x: number
+  y: number
+  width: number
+  height: number
+  fontSize: number
+  font: StampFont
+  bold: boolean
+  type: StampType
+}
 
 type Reference = {
   id: string
@@ -46,6 +57,11 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
   const [shareEmail, setShareEmail] = useState("")
   const [sharingEmail, setSharingEmail] = useState(false)
   const [sharingWhatsapp, setSharingWhatsapp] = useState(false)
+  const [manualStampTypes, setManualStampTypes] = useState<StampType[]>(["ref", "date"])
+  const [carriedStamp, setCarriedStamp] = useState<{
+    eraseBoxes: { x: number; y: number; width: number; height: number }[]
+    inserts: CarriedInsert[]
+  } | null>(null)
   const autoAttempted = useRef(false)
 
   useEffect(() => {
@@ -55,7 +71,9 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
     autoAttempted.current = true
     ;(async () => {
       const found = await autoStamp()
-      if (!found) {
+      const missing = (["ref", "date"] as StampType[]).filter((t) => !found[t])
+      if (missing.length > 0) {
+        setManualStampTypes(missing)
         const res = await fetch(`/api/references/${reference.id}/dims`)
         const data = await res.json()
         if (res.ok) setPageSize({ w: data.pageWidth, h: data.pageHeight })
@@ -83,7 +101,7 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
     router.refresh()
   }
 
-  async function autoStamp() {
+  async function autoStamp(): Promise<{ ref: boolean; date: boolean }> {
     setAutoStamping(true)
     const res = await fetch(`/api/references/${reference.id}/auto-stamp`, { method: "POST" })
     const data = await res.json()
@@ -91,22 +109,34 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
 
     if (!res.ok) {
       toast.error(data.error ?? "Auto-stamp failed")
-      return false
+      return { ref: false, date: false }
     }
-    if (!data.found) {
-      toast.info("Couldn't find \"Our ref.:\" on the document — position it manually below")
-      return false
+    const found = data.found as { ref: boolean; date: boolean }
+    if (!found.ref && !found.date) {
+      toast.info(
+        "Couldn't find \"Our ref.:\" or \"Date:\" on the document — position them manually below"
+      )
+      return found
     }
+
     setReference(data)
-    setRestamping(false)
-    toast.success("Auto-detected \"Our ref.:\" and stamped the reference number")
+    if (found.ref && found.date) {
+      setRestamping(false)
+      setCarriedStamp(null)
+      toast.success("Auto-detected \"Our ref.:\" and \"Date:\" and stamped them")
+    } else {
+      setRestamping(true)
+      setCarriedStamp(data.applied)
+      const missingLabel = found.ref ? "\"Date:\"" : "\"Our ref.:\""
+      toast.info(`Stamped what was found — couldn't find ${missingLabel}, position it manually below`)
+    }
     router.refresh()
-    return true
+    return found
   }
 
   async function handleStamp(payload: {
     eraseBoxes: { x: number; y: number; width: number; height: number }[]
-    insert: {
+    inserts: {
       x: number
       y: number
       width: number
@@ -114,13 +144,20 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
       font: StampFont
       bold: boolean
       fontSize: number
-    }
+      type: StampType
+    }[]
   }) {
     setStamping(true)
+    const merged = carriedStamp
+      ? {
+          eraseBoxes: [...carriedStamp.eraseBoxes, ...payload.eraseBoxes],
+          inserts: [...carriedStamp.inserts, ...payload.inserts],
+        }
+      : payload
     const res = await fetch(`/api/references/${reference.id}/stamp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(merged),
     })
     const data = await res.json()
     setStamping(false)
@@ -131,7 +168,9 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
     }
     setReference(data)
     setRestamping(false)
-    toast.success("Reference number stamped onto document")
+    setCarriedStamp(null)
+    setManualStampTypes(["ref", "date"])
+    toast.success("Stamped onto document")
     router.refresh()
   }
 
@@ -170,6 +209,8 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
       const data = await res.json()
       if (res.ok) setPageSize({ w: data.pageWidth, h: data.pageHeight })
     }
+    setManualStampTypes(["ref", "date"])
+    setCarriedStamp(null)
     setRestamping(true)
   }
 
@@ -311,7 +352,11 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
                   fileUrl={previewUrl}
                   pageWidth={pageSize.w}
                   pageHeight={pageSize.h}
-                  refNumber={reference.refNumber}
+                  stampTypes={manualStampTypes}
+                  previewText={{
+                    ref: reference.refNumber,
+                    date: format(new Date(reference.registerDate), "d MMM yyyy"),
+                  }}
                   onConfirm={handleStamp}
                   loading={stamping}
                 />

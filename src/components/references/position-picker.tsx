@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils"
 
 export type StampFont = "Helvetica" | "Times" | "Courier"
+export type StampType = "ref" | "date"
 
 const FONT_LABELS: Record<StampFont, string> = {
   Helvetica: "Helvetica (sans-serif)",
@@ -27,7 +28,13 @@ const FONT_FAMILY: Record<StampFont, string> = {
   Courier: "'Courier New', Courier, monospace",
 }
 
+const STAMP_LABELS: Record<StampType, string> = {
+  ref: "Reference No.",
+  date: "Date",
+}
+
 type DisplayBox = { px: number; py: number; pw: number; ph: number }
+type StampSettings = { font: StampFont; bold: boolean; fontSize: number }
 
 let boxId = 0
 
@@ -35,17 +42,21 @@ export function PositionPicker({
   fileUrl,
   pageWidth,
   pageHeight,
-  refNumber,
+  stampTypes,
+  previewText,
   onConfirm,
   loading,
 }: {
   fileUrl: string
   pageWidth: number
   pageHeight: number
-  refNumber: string
+  /** Which stamps still need manual placement — e.g. only ["date"] if the ref
+   * number was already auto-stamped. */
+  stampTypes: StampType[]
+  previewText: Record<StampType, string>
   onConfirm: (payload: {
     eraseBoxes: { x: number; y: number; width: number; height: number }[]
-    insert: {
+    inserts: {
       x: number
       y: number
       width: number
@@ -53,24 +64,35 @@ export function PositionPicker({
       font: StampFont
       bold: boolean
       fontSize: number
-    }
+      type: StampType
+    }[]
   }) => void
   loading?: boolean
 }) {
   const boxRef = useRef<HTMLDivElement>(null)
-  const [mode, setMode] = useState<"erase" | "insert" | null>("erase")
+  const [mode, setMode] = useState<"erase" | StampType | null>("erase")
   const [dragStart, setDragStart] = useState<{ px: number; py: number } | null>(null)
   const [dragBox, setDragBox] = useState<DisplayBox | null>(null)
   const [eraseBoxes, setEraseBoxes] = useState<{ id: number; box: DisplayBox }[]>([])
-  const [insertBox, setInsertBox] = useState<DisplayBox | null>(null)
+  const [insertBoxes, setInsertBoxes] = useState<Partial<Record<StampType, DisplayBox>>>({})
+  const [moveTarget, setMoveTarget] = useState<StampType | null>(null)
   const [moveOffset, setMoveOffset] = useState<{ x: number; y: number } | null>(null)
-  const [font, setFont] = useState<StampFont>("Helvetica")
-  const [bold, setBold] = useState(false)
-  const [fontSize, setFontSize] = useState(11)
+  const [settings, setSettings] = useState<Record<StampType, StampSettings>>({
+    ref: { font: "Helvetica", bold: false, fontSize: 11 },
+    date: { font: "Helvetica", bold: false, fontSize: 11 },
+  })
 
   const displayWidth = 640
   const displayHeight = (displayWidth * pageHeight) / pageWidth
   const scale = pageWidth / displayWidth
+
+  const activeType = mode === "erase" || mode === null ? null : mode
+  const activeSettings = activeType ? settings[activeType] : null
+
+  function updateActiveSettings(patch: Partial<StampSettings>) {
+    if (!activeType) return
+    setSettings((prev) => ({ ...prev, [activeType]: { ...prev[activeType], ...patch } }))
+  }
 
   function toLocal(e: { clientX: number; clientY: number }) {
     const rect = boxRef.current?.getBoundingClientRect()
@@ -87,9 +109,13 @@ export function PositionPicker({
   function handleDown(e: React.MouseEvent<HTMLDivElement>) {
     if (!mode) return
     const p = toLocal(e)
-    if (mode === "insert" && insertBox && insideBox(p, insertBox)) {
-      setMoveOffset({ x: p.px - insertBox.px, y: p.py - insertBox.py })
-      return
+    if (mode !== "erase") {
+      const box = insertBoxes[mode]
+      if (box && insideBox(p, box)) {
+        setMoveTarget(mode)
+        setMoveOffset({ x: p.px - box.px, y: p.py - box.py })
+        return
+      }
     }
     setDragStart(p)
     setDragBox(null)
@@ -97,14 +123,20 @@ export function PositionPicker({
 
   function handleMove(e: React.MouseEvent<HTMLDivElement>) {
     const cur = toLocal(e)
-    if (moveOffset && insertBox) {
-      const maxX = Math.max(displayWidth - insertBox.pw, 0)
-      const maxY = Math.max(displayHeight - insertBox.ph, 0)
-      setInsertBox({
-        ...insertBox,
-        px: Math.min(Math.max(cur.px - moveOffset.x, 0), maxX),
-        py: Math.min(Math.max(cur.py - moveOffset.y, 0), maxY),
-      })
+    if (moveOffset && moveTarget) {
+      const box = insertBoxes[moveTarget]
+      if (box) {
+        const maxX = Math.max(displayWidth - box.pw, 0)
+        const maxY = Math.max(displayHeight - box.ph, 0)
+        setInsertBoxes((prev) => ({
+          ...prev,
+          [moveTarget]: {
+            ...box,
+            px: Math.min(Math.max(cur.px - moveOffset.x, 0), maxX),
+            py: Math.min(Math.max(cur.py - moveOffset.y, 0), maxY),
+          },
+        }))
+      }
       return
     }
     if (!dragStart) return
@@ -119,6 +151,7 @@ export function PositionPicker({
   function handleUp() {
     if (moveOffset) {
       setMoveOffset(null)
+      setMoveTarget(null)
       return
     }
     setDragStart(null)
@@ -128,8 +161,8 @@ export function PositionPicker({
     }
     if (mode === "erase") {
       setEraseBoxes((prev) => [...prev, { id: boxId++, box: dragBox }])
-    } else {
-      setInsertBox(dragBox)
+    } else if (mode) {
+      setInsertBoxes((prev) => ({ ...prev, [mode]: dragBox }))
     }
     setDragBox(null)
   }
@@ -143,24 +176,33 @@ export function PositionPicker({
     return { x, y, width, height }
   }
 
+  const allPlaced = stampTypes.every((t) => insertBoxes[t])
+
   function confirm() {
-    if (!insertBox) return
+    if (!allPlaced) return
     onConfirm({
       eraseBoxes: eraseBoxes.map((e) => toPdfBox(e.box)),
-      insert: { ...toPdfBox(insertBox), font, bold, fontSize },
+      inserts: stampTypes.map((type) => ({
+        ...toPdfBox(insertBoxes[type]!),
+        ...settings[type],
+        type,
+      })),
     })
   }
-
-  const previewFontSize = fontSize / scale
 
   return (
     <div className="grid gap-3">
       <p className="text-sm text-muted-foreground">
         Use <span className="font-medium text-foreground">Delete</span> to
-        erase old text, then <span className="font-medium text-foreground">Insert stamp</span>{" "}
-        to place <span className="font-medium text-foreground">{refNumber}</span>{" "}
-        where it should go. Click the active tool again to deselect it so you
-        can scroll or move around the page underneath.
+        erase old text, then place each stamp (
+        {stampTypes.map((t) => (
+          <span key={t} className="font-medium text-foreground">
+            {STAMP_LABELS[t]}
+            {t !== stampTypes[stampTypes.length - 1] ? ", " : ""}
+          </span>
+        ))}
+        ) where it should go. Click the active tool again to deselect it so
+        you can scroll or move around the page underneath.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -175,51 +217,61 @@ export function PositionPicker({
             >
               Delete
             </Button>
-            <Button
-              type="button"
-              variant={mode === "insert" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setMode((m) => (m === "insert" ? null : "insert"))}
-            >
-              Insert stamp
-            </Button>
+            {stampTypes.map((t) => (
+              <Button
+                key={t}
+                type="button"
+                variant={mode === t ? "default" : "outline"}
+                size="sm"
+                onClick={() => setMode((m) => (m === t ? null : t))}
+              >
+                Place {STAMP_LABELS[t]}
+              </Button>
+            ))}
           </div>
         </div>
-        <div className="grid gap-1.5">
-          <Label className="text-xs">Font</Label>
-          <Select value={font} onValueChange={(v) => setFont((v as StampFont) ?? "Helvetica")}>
-            <SelectTrigger className="w-44">
-              <SelectValue>{FONT_LABELS[font]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(FONT_LABELS) as StampFont[]).map((f) => (
-                <SelectItem key={f} value={f}>
-                  {FONT_LABELS[f]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-1.5">
-          <Label className="text-xs">Size</Label>
-          <Input
-            type="number"
-            min={6}
-            max={36}
-            className="w-20"
-            value={fontSize}
-            onChange={(e) => setFontSize(Number(e.target.value) || 11)}
-          />
-        </div>
-        <Button
-          type="button"
-          variant={bold ? "default" : "outline"}
-          size="sm"
-          onClick={() => setBold((b) => !b)}
-          className="font-bold"
-        >
-          B
-        </Button>
+        {activeType && activeSettings && (
+          <>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">Font</Label>
+              <Select
+                value={activeSettings.font}
+                onValueChange={(v) => updateActiveSettings({ font: (v as StampFont) ?? "Helvetica" })}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue>{FONT_LABELS[activeSettings.font]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(FONT_LABELS) as StampFont[]).map((f) => (
+                    <SelectItem key={f} value={f}>
+                      {FONT_LABELS[f]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label className="text-xs">Size</Label>
+              <Input
+                type="number"
+                min={6}
+                max={36}
+                className="w-20"
+                value={activeSettings.fontSize}
+                onChange={(e) => updateActiveSettings({ fontSize: Number(e.target.value) || 11 })}
+              />
+            </div>
+            <Button
+              type="button"
+              variant={activeSettings.bold ? "default" : "outline"}
+              size="sm"
+              onClick={() => updateActiveSettings({ bold: !activeSettings.bold })}
+              className="font-bold"
+            >
+              B
+            </Button>
+          </>
+        )}
       </div>
 
       <div
@@ -231,7 +283,7 @@ export function PositionPicker({
         className={cn(
           "relative overflow-hidden rounded-md border select-none",
           mode === "erase" && "cursor-crosshair",
-          mode === "insert" && "cursor-cell"
+          mode && mode !== "erase" && "cursor-cell"
         )}
         style={{ width: displayWidth, height: displayHeight, maxWidth: "100%" }}
       >
@@ -260,36 +312,43 @@ export function PositionPicker({
           </div>
         ))}
 
-        {insertBox && (
-          <div
-            className={cn(
-              "absolute flex items-center overflow-hidden border-2 border-primary bg-primary/10",
-              mode === "insert" && "cursor-move"
-            )}
-            style={{ left: insertBox.px, top: insertBox.py, width: insertBox.pw, height: insertBox.ph }}
-          >
-            <span
-              className="truncate px-0.5 leading-none text-black"
-              style={{
-                fontFamily: FONT_FAMILY[font],
-                fontWeight: bold ? 700 : 400,
-                fontSize: Math.max(previewFontSize, 4),
-              }}
+        {stampTypes.map((type) => {
+          const box = insertBoxes[type]
+          if (!box) return null
+          const s = settings[type]
+          const previewFontSize = s.fontSize / scale
+          return (
+            <div
+              key={type}
+              className={cn(
+                "absolute flex items-center overflow-hidden border-2 border-primary bg-primary/10",
+                mode === type && "cursor-move"
+              )}
+              style={{ left: box.px, top: box.py, width: box.pw, height: box.ph }}
             >
-              {refNumber}
-            </span>
-            <button
-              type="button"
-              aria-label="Delete stamp area"
-              title="Delete stamp area"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => setInsertBox(null)}
-              className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] leading-none text-white shadow"
-            >
-              ×
-            </button>
-          </div>
-        )}
+              <span
+                className="truncate px-0.5 leading-none text-black"
+                style={{
+                  fontFamily: FONT_FAMILY[s.font],
+                  fontWeight: s.bold ? 700 : 400,
+                  fontSize: Math.max(previewFontSize, 4),
+                }}
+              >
+                {previewText[type]}
+              </span>
+              <button
+                type="button"
+                aria-label={`Delete ${STAMP_LABELS[type]} stamp area`}
+                title={`Delete ${STAMP_LABELS[type]} stamp area`}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => setInsertBoxes((prev) => ({ ...prev, [type]: undefined }))}
+                className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] leading-none text-white shadow"
+              >
+                ×
+              </button>
+            </div>
+          )
+        })}
 
         {dragBox && (
           <div
@@ -304,10 +363,10 @@ export function PositionPicker({
 
       <p className="text-xs text-muted-foreground">
         {eraseBoxes.length} erase area{eraseBoxes.length === 1 ? "" : "s"} — use
-        the × on a box to delete it. Drag the stamp preview to reposition it.
+        the × on a box to delete it. Drag a stamp preview to reposition it.
       </p>
 
-      <Button onClick={confirm} disabled={!insertBox || loading} className="w-fit">
+      <Button onClick={confirm} disabled={!allPlaced || loading} className="w-fit">
         {loading ? "Stamping..." : "Apply stamp"}
       </Button>
     </div>

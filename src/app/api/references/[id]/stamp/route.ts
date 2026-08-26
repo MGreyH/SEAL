@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
+import { format } from "date-fns"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { saveUploadedFile, readStoredFile } from "@/lib/storage"
-import { stampPdf } from "@/lib/stamp-pdf"
+import { stampPdf, type Insert } from "@/lib/stamp-pdf"
 
 const boxSchema = z.object({
   x: z.number(),
@@ -14,11 +15,16 @@ const boxSchema = z.object({
 
 const schema = z.object({
   eraseBoxes: z.array(boxSchema).default([]),
-  insert: boxSchema.extend({
-    fontSize: z.number().min(6).max(36).default(11),
-    font: z.enum(["Helvetica", "Times", "Courier"]).default("Helvetica"),
-    bold: z.boolean().default(false),
-  }),
+  inserts: z
+    .array(
+      boxSchema.extend({
+        fontSize: z.number().min(6).max(36).default(11),
+        font: z.enum(["Helvetica", "Times", "Courier"]).default("Helvetica"),
+        bold: z.boolean().default(false),
+        type: z.enum(["ref", "date"]),
+      })
+    )
+    .min(1),
 })
 
 export async function POST(
@@ -44,8 +50,16 @@ export async function POST(
     return NextResponse.json({ error: "Invalid position" }, { status: 400 })
   }
 
+  const inserts: Insert[] = parsed.data.inserts.map(({ type, ...box }) => ({
+    ...box,
+    text:
+      type === "ref"
+        ? reference.refNumber
+        : format(reference.registerDate, "d MMM yyyy"),
+  }))
+
   const sourceBytes = await readStoredFile(reference.originalFilePath)
-  const stampedBytes = await stampPdf(sourceBytes, reference.refNumber, parsed.data)
+  const stampedBytes = await stampPdf(sourceBytes, { eraseBoxes: parsed.data.eraseBoxes, inserts })
   const stampedPath = await saveUploadedFile(reference.createdById, id, "stamped", stampedBytes)
 
   const updated = await prisma.documentReference.update({
