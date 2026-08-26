@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
-import { readFile } from "fs/promises"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { saveUploadedFile } from "@/lib/storage"
+import { saveUploadedFile, readStoredFile } from "@/lib/storage"
 import { stampPdf } from "@/lib/stamp-pdf"
 import { scanForOurRef } from "@/lib/pdf-scan"
 
@@ -23,7 +22,7 @@ export async function POST(
     return NextResponse.json({ error: "Upload a document first" }, { status: 400 })
   }
 
-  const sourceBytes = await readFile(reference.originalFilePath)
+  const sourceBytes = await readStoredFile(reference.originalFilePath)
   const box = await scanForOurRef(sourceBytes)
   if (!box) {
     return NextResponse.json({ found: false })
@@ -33,7 +32,7 @@ export async function POST(
     eraseBoxes: [box],
     insert: { ...box, font: "Helvetica", bold: false },
   })
-  const stampedPath = await saveUploadedFile(id, "stamped", stampedBytes)
+  const stampedPath = await saveUploadedFile(reference.createdById, id, "stamped", stampedBytes)
 
   const updated = await prisma.documentReference.update({
     where: { id },

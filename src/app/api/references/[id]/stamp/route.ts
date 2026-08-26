@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server"
-import { readFile } from "fs/promises"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { saveUploadedFile } from "@/lib/storage"
+import { saveUploadedFile, readStoredFile } from "@/lib/storage"
 import { stampPdf } from "@/lib/stamp-pdf"
 
 const boxSchema = z.object({
@@ -45,9 +44,9 @@ export async function POST(
     return NextResponse.json({ error: "Invalid position" }, { status: 400 })
   }
 
-  const sourceBytes = await readFile(reference.originalFilePath)
+  const sourceBytes = await readStoredFile(reference.originalFilePath)
   const stampedBytes = await stampPdf(sourceBytes, reference.refNumber, parsed.data)
-  const stampedPath = await saveUploadedFile(id, "stamped", stampedBytes)
+  const stampedPath = await saveUploadedFile(reference.createdById, id, "stamped", stampedBytes)
 
   const updated = await prisma.documentReference.update({
     where: { id },

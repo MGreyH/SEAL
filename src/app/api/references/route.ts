@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server"
-import { rm } from "fs/promises"
-import path from "path"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { allocateReference } from "@/lib/ref-number"
-import { UPLOADS_DIR } from "@/lib/storage"
+import { deleteReferenceFiles } from "@/lib/storage"
 
 const schema = z.object({
   categoryId: z.string().min(1),
@@ -64,11 +62,12 @@ export async function DELETE(req: Request) {
       ? { id: { in: parsed.data.ids } }
       : { id: { in: parsed.data.ids }, createdById: session.user.id }
 
-  const owned = await prisma.documentReference.findMany({ where, select: { id: true } })
+  const owned = await prisma.documentReference.findMany({
+    where,
+    select: { id: true, createdById: true },
+  })
   await prisma.documentReference.deleteMany({ where })
-  await Promise.all(
-    owned.map((r) => rm(path.join(UPLOADS_DIR, r.id), { recursive: true, force: true }))
-  )
+  await Promise.all(owned.map((r) => deleteReferenceFiles(r.createdById, r.id)))
 
   return NextResponse.json({ ok: true, deleted: owned.length })
 }

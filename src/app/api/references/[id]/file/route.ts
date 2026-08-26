@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { readFile } from "fs/promises"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { readStoredFile } from "@/lib/storage"
 
 export async function GET(
   req: Request,
@@ -22,7 +22,7 @@ export async function GET(
   const filePath = kind === "stamped" ? reference.stampedFilePath : reference.originalFilePath
   if (!filePath) return NextResponse.json({ error: "No file" }, { status: 404 })
 
-  const bytes = await readFile(filePath)
+  const bytes = await readStoredFile(filePath)
   return new NextResponse(new Uint8Array(bytes), {
     headers: { "Content-Type": "application/pdf" },
   })

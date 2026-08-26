@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
-import { readFile } from "fs/promises"
 import { PDFDocument } from "pdf-lib"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { readStoredFile } from "@/lib/storage"
 
 export async function GET(
   req: Request,
@@ -17,7 +17,7 @@ export async function GET(
     return NextResponse.json({ error: "No document" }, { status: 404 })
   }
 
-  const bytes = await readFile(reference.originalFilePath)
+  const bytes = await readStoredFile(reference.originalFilePath)
   const pdfDoc = await PDFDocument.load(bytes)
   const page = pdfDoc.getPages()[0]
 

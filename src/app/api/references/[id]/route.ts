@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server"
-import { rm } from "fs/promises"
-import path from "path"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { UPLOADS_DIR } from "@/lib/storage"
+import { deleteReferenceFiles } from "@/lib/storage"
 
 export async function DELETE(
   req: Request,
@@ -20,7 +18,7 @@ export async function DELETE(
   }
 
   await prisma.documentReference.delete({ where: { id } })
-  await rm(path.join(UPLOADS_DIR, id), { recursive: true, force: true })
+  await deleteReferenceFiles(reference.createdById, id)
 
   return NextResponse.json({ ok: true })
 }

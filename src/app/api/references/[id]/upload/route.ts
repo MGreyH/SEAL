@@ -25,7 +25,7 @@ export async function POST(
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer())
-  const filePath = await saveUploadedFile(id, "original", bytes)
+  const filePath = await saveUploadedFile(reference.createdById, id, "original", bytes)
 
   const pdfDoc = await PDFDocument.load(bytes)
   const firstPage = pdfDoc.getPages()[0]

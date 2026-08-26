@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { readFile } from "fs/promises"
 import { prisma } from "@/lib/prisma"
+import { readStoredFile } from "@/lib/storage"
 
 export async function GET(
   req: Request,
@@ -12,7 +12,7 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
-  const bytes = await readFile(reference.stampedFilePath)
+  const bytes = await readStoredFile(reference.stampedFilePath)
   return new NextResponse(new Uint8Array(bytes), {
     headers: { "Content-Type": "application/pdf" },
   })
