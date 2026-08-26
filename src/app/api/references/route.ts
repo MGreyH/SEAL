@@ -10,7 +10,7 @@ const schema = z.object({
   title: z.string().min(1),
   registerDate: z.coerce.date(),
   picName: z.string().min(1),
-  picPosition: z.string().min(1),
+  picEmployeeId: z.string().min(1),
   picEmail: z.string().email(),
 })
 

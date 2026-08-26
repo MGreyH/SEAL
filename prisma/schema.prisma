@@ -50,9 +50,9 @@ model DocumentReference {
 
   title        String
   registerDate DateTime
-  picName      String
-  picPosition  String
-  picEmail     String
+  picName        String
+  picEmployeeId  String
+  picEmail       String
 
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])

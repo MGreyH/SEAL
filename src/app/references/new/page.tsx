@@ -29,7 +29,7 @@ export default function NewReferencePage() {
     title: "",
     registerDate: new Date().toISOString().slice(0, 10),
     picName: "",
-    picPosition: "",
+    picEmployeeId: "",
     picEmail: "",
   })
   const [file, setFile] = useState<File | null>(null)
@@ -157,12 +157,12 @@ export default function NewReferencePage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="picPosition">PIC position</Label>
+                  <Label htmlFor="picEmployeeId">PIC Employee ID</Label>
                   <Input
-                    id="picPosition"
+                    id="picEmployeeId"
                     required
-                    value={form.picPosition}
-                    onChange={(e) => setForm({ ...form, picPosition: e.target.value })}
+                    value={form.picEmployeeId}
+                    onChange={(e) => setForm({ ...form, picEmployeeId: e.target.value })}
                   />
                 </div>
               </div>

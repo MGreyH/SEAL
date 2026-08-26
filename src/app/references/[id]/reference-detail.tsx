@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -36,7 +37,7 @@ type Reference = {
   title: string
   registerDate: string
   picName: string
-  picPosition: string
+  picEmployeeId: string
   picEmail: string
   status: "REGISTERED" | "STAMPED" | "SENT"
   originalFilePath: string | null
@@ -46,7 +47,12 @@ type Reference = {
 
 export function ReferenceDetail({ initial }: { initial: Reference }) {
   const router = useRouter()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === "ADMIN"
   const [reference, setReference] = useState(initial)
+  const [editingRefNumber, setEditingRefNumber] = useState(false)
+  const [refNumberDraft, setRefNumberDraft] = useState("")
+  const [savingRefNumber, setSavingRefNumber] = useState(false)
   const [pageSize, setPageSize] = useState<{ w: number; h: number } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [stamping, setStamping] = useState(false)
@@ -189,6 +195,35 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
     router.refresh()
   }
 
+  async function handleSaveRefNumber() {
+    const trimmed = refNumberDraft.trim()
+    if (!trimmed) {
+      toast.error("Reference number can't be empty")
+      return
+    }
+    if (trimmed === reference.refNumber) {
+      setEditingRefNumber(false)
+      return
+    }
+    setSavingRefNumber(true)
+    const res = await fetch(`/api/references/${reference.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refNumber: trimmed }),
+    })
+    const data = await res.json()
+    setSavingRefNumber(false)
+
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to update reference number")
+      return
+    }
+    setReference(data)
+    setEditingRefNumber(false)
+    toast.success("Reference number updated")
+    router.refresh()
+  }
+
   async function handleDelete() {
     if (!window.confirm("Delete this reference? This cannot be undone.")) return
     setDeleting(true)
@@ -299,7 +334,43 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
         <CardContent className="grid grid-cols-2 gap-4 text-sm">
           <div className="col-span-2">
             <p className="text-muted-foreground">Reference No.</p>
-            <p className="font-mono font-medium">{reference.refNumber}</p>
+            {isAdmin && editingRefNumber ? (
+              <div className="mt-1 flex items-center gap-2">
+                <Input
+                  className="font-mono"
+                  value={refNumberDraft}
+                  onChange={(e) => setRefNumberDraft(e.target.value)}
+                  disabled={savingRefNumber}
+                />
+                <Button size="sm" onClick={handleSaveRefNumber} disabled={savingRefNumber}>
+                  {savingRefNumber ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setEditingRefNumber(false)}
+                  disabled={savingRefNumber}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <p className="font-mono font-medium">{reference.refNumber}</p>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRefNumberDraft(reference.refNumber)
+                      setEditingRefNumber(true)
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           <div>
             <p className="text-muted-foreground">Category</p>
@@ -312,7 +383,7 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
           <div>
             <p className="text-muted-foreground">PIC</p>
             <p className="font-medium">
-              {reference.picName} — {reference.picPosition}
+              {reference.picName} — {reference.picEmployeeId}
             </p>
           </div>
           <div>

@@ -32,7 +32,7 @@ export default async function ReferenceDetailPage({
           title: reference.title,
           registerDate: reference.registerDate.toISOString(),
           picName: reference.picName,
-          picPosition: reference.picPosition,
+          picEmployeeId: reference.picEmployeeId,
           picEmail: reference.picEmail,
           status: reference.status,
           originalFilePath: reference.originalFilePath,

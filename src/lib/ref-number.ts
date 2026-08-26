@@ -11,7 +11,7 @@ export async function allocateReference(input: {
   title: string
   registerDate: Date
   picName: string
-  picPosition: string
+  picEmployeeId: string
   picEmail: string
   createdById: string
 }) {
@@ -41,7 +41,7 @@ export async function allocateReference(input: {
         title: input.title,
         registerDate: input.registerDate,
         picName: input.picName,
-        picPosition: input.picPosition,
+        picEmployeeId: input.picEmployeeId,
         picEmail: input.picEmail,
         createdById: input.createdById,
       },
