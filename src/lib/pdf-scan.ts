@@ -1,6 +1,11 @@
 import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import path from "path"
 
+declare global {
+  // eslint-disable-next-line no-var
+  var pdfjsWorker: unknown
+}
+
 const standardFontDataUrl =
   path.join(process.cwd(), "node_modules/pdfjs-dist/standard_fonts").replace(/\\/g, "/") + "/"
 
@@ -26,6 +31,16 @@ export async function scanForOurRef(pdfBytes: Uint8Array) {
   if (typeof globalThis.DOMMatrix === "undefined") {
     const { default: DOMMatrixPolyfill } = await import("dommatrix")
     globalThis.DOMMatrix = DOMMatrixPolyfill
+  }
+
+  // pdfjs also spawns a "fake worker" by dynamically resolving its own
+  // pdf.worker.mjs file path at runtime — a lookup Vercel's build tracer
+  // can't see statically, so the file gets dropped from the deployment.
+  // Pre-registering it on globalThis makes pdfjs skip that lookup entirely,
+  // and this static-string dynamic import is something the tracer *can* see.
+  if (typeof globalThis.pdfjsWorker === "undefined") {
+    // @ts-expect-error pdf.worker.mjs has no published type declarations
+    globalThis.pdfjsWorker = await import("pdfjs-dist/legacy/build/pdf.worker.mjs")
   }
 
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs")
