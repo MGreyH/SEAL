@@ -1,4 +1,3 @@
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs"
 import type { TextItem } from "pdfjs-dist/types/src/display/api"
 import path from "path"
 
@@ -21,6 +20,15 @@ export async function scanForOurRef(pdfBytes: Uint8Array) {
   // pdfjs rejects Node Buffer instances outright (even though Buffer is a
   // Uint8Array subclass) and detaches the ArrayBuffer it's given — copy
   // into a fresh Uint8Array so the caller's original bytes stay intact.
+  // pdfjs-dist's legacy build references the browser-only DOMMatrix API at
+  // module load time. Node has no such global, so polyfill it before pdfjs
+  // is imported.
+  if (typeof globalThis.DOMMatrix === "undefined") {
+    const { default: DOMMatrixPolyfill } = await import("dommatrix")
+    globalThis.DOMMatrix = DOMMatrixPolyfill
+  }
+
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs")
   const data = new Uint8Array(pdfBytes)
   const doc = await getDocument({ data, standardFontDataUrl }).promise
   const page = await doc.getPage(1)
