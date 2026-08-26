@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SEAL — System for E-document Allocation and Logging
 
-## Getting Started
+SEAL is G7 Aerospace's internal reference number registry. It issues sequential, category-coded document references (e.g. `G7/ST-LT/009/26`), auto-detects and stamps the reference number and registration date directly onto uploaded PDFs, tracks each document's status end-to-end, and lets staff search, sort, and share sealed documents securely.
 
-First, run the development server:
+## Features
+
+- **Reference number allocation** — sequential, category-coded numbers generated per category+year, collision-safe under concurrent requests.
+- **Auto-stamp** — scans page 1 of an uploaded PDF for "Our ref.:" and "Date:" labels and stamps the reference number and formatted registration date (`d MMM yyyy`) into place, independently of each other.
+- **Manual stamp positioning** — a drag-and-position picker for when auto-detection misses a label, or for re-stamping.
+- **Status tracking** — Registered → Stamped → Sent, with admin-only inline editing of the reference number (rejecting duplicates).
+- **Sharing** — email the stamped PDF to the PIC, share a public download link, or hand off via WhatsApp.
+- **Search, sort, and role-based access** — searchable/sortable reference list; guests only see their own references, admins see and manage all of them.
+
+## Tech stack
+
+- [Next.js](https://nextjs.org) (App Router, Turbopack) + [React](https://react.dev) + [TypeScript](https://www.typescriptlang.org)
+- [Prisma ORM](https://www.prisma.io) over MySQL/MariaDB
+- [NextAuth.js](https://authjs.dev) (credentials + guest email-domain login)
+- [Tailwind CSS](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com)
+- [pdf-lib](https://pdf-lib.js.org) / [pdfjs-dist](https://mozilla.github.io/pdf.js/) for PDF stamping and text scanning
+- [nodemailer](https://nodemailer.com) for email delivery
+- FTP-backed file storage (uploaded/stamped PDFs live on the hosting server, not the app server's local disk — required for serverless deployment on Vercel)
+
+## Getting started
+
+Install dependencies and run the dev server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env` and fill in:
 
-## Learn More
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | MySQL/MariaDB connection string |
+| `NEXTAUTH_SECRET` | NextAuth session secret |
+| `NEXTAUTH_URL` | Public URL of the deployment (optional — NextAuth v5 can auto-detect it) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Outbound email for sharing/notifications |
+| `GUEST_EMAIL_DOMAINS` | Comma-separated email domains allowed to self-register as Guest |
+| `SEED_ADMIN_NAME` / `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Used once by `prisma/seed.ts` to create the initial admin account |
+| `FTP_HOST` / `FTP_USER` / `FTP_PASSWORD` / `FTP_BASE_DIR` | FTP credentials for stored document files |
 
-To learn more about Next.js, take a look at the following resources:
+### Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npx prisma migrate deploy   # apply migrations
+npx prisma db seed          # create initial category + admin user
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+Deployed on [Vercel](https://vercel.com), with the database and file storage (via FTP) hosted separately on cPanel. Because Vercel's serverless functions have an ephemeral filesystem, uploaded/stamped PDFs are never written to local disk — they're read and written directly over FTP through `src/lib/storage.ts`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set the environment variables above in the Vercel project's settings before deploying.

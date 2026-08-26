@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "G7 Aerospace | Document Reference Tracker",
-  description: "Document reference number tracker for G7 Aerospace Sdn Bhd",
+  title: "SEAL | G7 Aerospace",
+  description:
+    "SEAL — System for E-document Allocation and Logging, for G7 Aerospace Sdn Bhd",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

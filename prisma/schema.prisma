@@ -1,4 +1,4 @@
-// Prisma schema for G7 Aerospace Document Reference Number Tracker
+// Prisma schema for SEAL (System for E-document Allocation and Logging), G7 Aerospace
 
 generator client {
   provider = "prisma-client"

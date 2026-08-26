@@ -25,7 +25,7 @@ export default function LoginPage() {
         <CardHeader className="items-center text-center">
           <Logo className="mb-2 justify-center flex" />
           <CardTitle>Sign in</CardTitle>
-          <CardDescription>Document Reference Number Tracker</CardDescription>
+          <CardDescription>SEAL — System for E-document Allocation and Logging</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="guest">
