@@ -1,0 +1,70 @@
+// Prisma schema for G7 Aerospace Document Reference Number Tracker
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+  GUEST
+}
+
+enum ReferenceStatus {
+  REGISTERED
+  STAMPED
+  SENT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  role         Role     @default(GUEST)
+  position     String?
+  createdAt    DateTime @default(now())
+
+  references DocumentReference[]
+}
+
+model DocumentCategory {
+  id   String @id @default(cuid())
+  code String @unique
+  name String
+
+  references DocumentReference[]
+}
+
+model DocumentReference {
+  id         String           @id @default(cuid())
+  categoryId String
+  category   DocumentCategory @relation(fields: [categoryId], references: [id])
+  year       Int
+  seqNumber  Int
+  refNumber  String           @unique
+
+  title        String
+  registerDate DateTime
+  picName      String
+  picPosition  String
+  picEmail     String
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  status ReferenceStatus @default(REGISTERED)
+
+  originalFilePath String?
+  stampedFilePath  String?
+  sentAt           DateTime?
+  shareToken       String?   @unique
+
+  createdAt DateTime @default(now())
+
+  @@unique([categoryId, year, seqNumber])
+}
