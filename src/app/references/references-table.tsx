@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -16,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PlusCircle, Trash2 } from "lucide-react"
+import { PlusCircle, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
   REGISTERED: "outline",
@@ -33,6 +34,17 @@ type Reference = {
   status: "REGISTERED" | "STAMPED" | "SENT"
 }
 
+type SortKey = "refNumber" | "title" | "picName" | "registerDate" | "status"
+type SortDir = "asc" | "desc"
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "refNumber", label: "Reference No." },
+  { key: "title", label: "Title" },
+  { key: "picName", label: "PIC" },
+  { key: "registerDate", label: "Registered" },
+  { key: "status", label: "Status" },
+]
+
 export function ReferencesTable({
   references,
   subtitle,
@@ -43,8 +55,33 @@ export function ReferencesTable({
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
+  const [search, setSearch] = useState("")
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>("asc")
 
-  const allSelected = references.length > 0 && selected.size === references.length
+  const displayed = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const filtered = q
+      ? references.filter((r) =>
+          [r.refNumber, r.title, r.picName, format(r.registerDate, "dd/MM/yyyy")]
+            .join(" ")
+            .toLowerCase()
+            .includes(q)
+        )
+      : references
+
+    if (!sortKey) return filtered
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortKey === "registerDate") {
+        return a.registerDate.getTime() - b.registerDate.getTime()
+      }
+      return a[sortKey].localeCompare(b[sortKey])
+    })
+    return sortDir === "asc" ? sorted : sorted.reverse()
+  }, [references, search, sortKey, sortDir])
+
+  const allSelected = displayed.length > 0 && displayed.every((r) => selected.has(r.id))
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -56,7 +93,25 @@ export function ReferencesTable({
   }
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(references.map((r) => r.id)))
+    setSelected((prev) => {
+      if (allSelected) {
+        const next = new Set(prev)
+        for (const r of displayed) next.delete(r.id)
+        return next
+      }
+      const next = new Set(prev)
+      for (const r of displayed) next.add(r.id)
+      return next
+    })
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sortKey !== key) {
+      setSortKey(key)
+      setSortDir("asc")
+    } else {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    }
   }
 
   async function handleBulkDelete() {
@@ -81,7 +136,7 @@ export function ReferencesTable({
   }
 
   return (
-    <>
+    <div className="flex flex-col">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -105,11 +160,18 @@ export function ReferencesTable({
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by reference no., title, PIC, or date"
+        className="mb-4 max-w-md shrink-0"
+      />
+
+      <Card className="flex flex-col">
+        <CardHeader className="shrink-0">
           <CardTitle className="text-base">All references</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="max-h-[calc(100vh-19rem)] overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -121,15 +183,30 @@ export function ReferencesTable({
                     aria-label="Select all"
                   />
                 </TableHead>
-                <TableHead>Reference No.</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>PIC</TableHead>
-                <TableHead>Registered</TableHead>
-                <TableHead>Status</TableHead>
+                {COLUMNS.map((col) => (
+                  <TableHead key={col.key}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col.key)}
+                      className="flex items-center gap-1 font-medium hover:text-foreground"
+                    >
+                      {col.label}
+                      {sortKey === col.key ? (
+                        sortDir === "asc" ? (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      )}
+                    </button>
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {references.map((r) => (
+              {displayed.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>
                     <input
@@ -155,10 +232,12 @@ export function ReferencesTable({
                   </TableCell>
                 </TableRow>
               ))}
-              {references.length === 0 && (
+              {displayed.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                    No references yet. Create your first one.
+                    {references.length === 0
+                      ? "No references yet. Create your first one."
+                      : "No references match your search."}
                   </TableCell>
                 </TableRow>
               )}
@@ -166,6 +245,6 @@ export function ReferencesTable({
           </Table>
         </CardContent>
       </Card>
-    </>
+    </div>
   )
 }
