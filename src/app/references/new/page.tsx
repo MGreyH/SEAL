@@ -184,12 +184,11 @@ export default function NewReferencePage() {
                   id="file"
                   type="file"
                   accept="application/pdf"
-                  required
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
               </div>
 
-              <Button type="submit" disabled={submitting || !form.categoryId || !file}>
+              <Button type="submit" disabled={submitting || !form.categoryId}>
                 {submitting ? "Generating..." : "Generate reference number"}
               </Button>
             </form>
