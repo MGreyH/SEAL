@@ -4,7 +4,14 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { deleteReferenceFiles } from "@/lib/storage"
 
-const patchSchema = z.object({ refNumber: z.string().trim().min(1) })
+const patchSchema = z.object({
+  refNumber: z.string().trim().min(1).optional(),
+  title: z.string().trim().min(1).optional(),
+  registerDate: z.coerce.date().optional(),
+  picName: z.string().trim().min(1).optional(),
+  picEmployeeId: z.string().trim().min(1).optional(),
+  picEmail: z.string().trim().email().optional(),
+})
 
 export async function PATCH(
   req: Request,
@@ -12,30 +19,32 @@ export async function PATCH(
 ) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  if (session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
 
   const { id } = await params
   const reference = await prisma.documentReference.findUnique({ where: { id } })
   if (!reference) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (session.user.role !== "ADMIN" && reference.createdById !== session.user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   const parsed = patchSchema.safeParse(await req.json())
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid reference number" }, { status: 400 })
+    return NextResponse.json({ error: "Invalid details" }, { status: 400 })
   }
 
-  const existing = await prisma.documentReference.findUnique({
-    where: { refNumber: parsed.data.refNumber },
-    select: { id: true },
-  })
-  if (existing && existing.id !== id) {
-    return NextResponse.json({ error: "Reference number already in use" }, { status: 409 })
+  if (parsed.data.refNumber) {
+    const existing = await prisma.documentReference.findUnique({
+      where: { refNumber: parsed.data.refNumber },
+      select: { id: true },
+    })
+    if (existing && existing.id !== id) {
+      return NextResponse.json({ error: "Reference number already in use" }, { status: 409 })
+    }
   }
 
   const updated = await prisma.documentReference.update({
     where: { id },
-    data: { refNumber: parsed.data.refNumber },
+    data: parsed.data,
     include: { category: true },
   })
 

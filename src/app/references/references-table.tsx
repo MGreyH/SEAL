@@ -56,8 +56,8 @@ export function ReferencesTable({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [search, setSearch] = useState("")
-  const [sortKey, setSortKey] = useState<SortKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDir>("asc")
+  const [sortKey, setSortKey] = useState<SortKey | null>("refNumber")
+  const [sortDir, setSortDir] = useState<SortDir>("desc")
 
   const displayed = useMemo(() => {
     const q = search.trim().toLowerCase()

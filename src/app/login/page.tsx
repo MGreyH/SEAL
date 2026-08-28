@@ -167,17 +167,17 @@ function GuestLoginForm({ onSuccess }: { onSuccess: () => void }) {
 
 function AdminLoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [loading, setLoading] = useState(false)
-  const [email, setEmail] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const res = await signIn("credentials", { email, password, redirect: false })
+    const res = await signIn("credentials", { identifier, password, redirect: false })
     setLoading(false)
 
     if (res?.error) {
-      toast.error("Invalid email or password")
+      toast.error("Invalid username/email or password")
       return
     }
     onSuccess()
@@ -186,13 +186,13 @@ function AdminLoginForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={onSubmit} className="grid gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="admin-email">Email</Label>
+        <Label htmlFor="admin-identifier">Username or Email</Label>
         <Input
-          id="admin-email"
-          type="email"
+          id="admin-identifier"
+          type="text"
           required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
         />
       </div>
       <div className="grid gap-2">

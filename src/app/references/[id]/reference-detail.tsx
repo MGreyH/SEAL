@@ -48,16 +48,25 @@ type Reference = {
 export function ReferenceDetail({ initial }: { initial: Reference }) {
   const router = useRouter()
   const { data: session } = useSession()
-  const isAdmin = session?.user?.role === "ADMIN"
+  // page.tsx already redirects away anyone who isn't ADMIN or the reference's owner
+  const canEdit = !!session
   const [reference, setReference] = useState(initial)
-  const [editingRefNumber, setEditingRefNumber] = useState(false)
-  const [refNumberDraft, setRefNumberDraft] = useState("")
-  const [savingRefNumber, setSavingRefNumber] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [detailsDraft, setDetailsDraft] = useState({
+    refNumber: initial.refNumber,
+    title: initial.title,
+    registerDate: format(initial.registerDate, "yyyy-MM-dd"),
+    picName: initial.picName,
+    picEmployeeId: initial.picEmployeeId,
+    picEmail: initial.picEmail,
+  })
+  const [savingDetails, setSavingDetails] = useState(false)
   const [pageSize, setPageSize] = useState<{ w: number; h: number } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [stamping, setStamping] = useState(false)
   const [sending, setSending] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [removingFile, setRemovingFile] = useState(false)
   const [restamping, setRestamping] = useState(false)
   const [autoStamping, setAutoStamping] = useState(false)
   const [shareEmail, setShareEmail] = useState("")
@@ -195,32 +204,33 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
     router.refresh()
   }
 
-  async function handleSaveRefNumber() {
-    const trimmed = refNumberDraft.trim()
-    if (!trimmed) {
-      toast.error("Reference number can't be empty")
+  async function handleSaveDetails() {
+    if (
+      !detailsDraft.refNumber.trim() ||
+      !detailsDraft.title.trim() ||
+      !detailsDraft.picName.trim() ||
+      !detailsDraft.picEmployeeId.trim() ||
+      !detailsDraft.picEmail.trim()
+    ) {
+      toast.error("All fields are required")
       return
     }
-    if (trimmed === reference.refNumber) {
-      setEditingRefNumber(false)
-      return
-    }
-    setSavingRefNumber(true)
+    setSavingDetails(true)
     const res = await fetch(`/api/references/${reference.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refNumber: trimmed }),
+      body: JSON.stringify(detailsDraft),
     })
     const data = await res.json()
-    setSavingRefNumber(false)
+    setSavingDetails(false)
 
     if (!res.ok) {
-      toast.error(data.error ?? "Failed to update reference number")
+      toast.error(data.error ?? "Failed to update details")
       return
     }
     setReference(data)
-    setEditingRefNumber(false)
-    toast.success("Reference number updated")
+    setEditingDetails(false)
+    toast.success("Details updated")
     router.refresh()
   }
 
@@ -236,6 +246,27 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
     }
     toast.success("Reference deleted")
     router.push("/references")
+  }
+
+  async function handleRemoveFile() {
+    if (!window.confirm("Remove the uploaded document? You'll need to upload it again.")) return
+    setRemovingFile(true)
+    const res = await fetch(`/api/references/${reference.id}/file`, { method: "DELETE" })
+    const data = await res.json()
+    setRemovingFile(false)
+
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to remove document")
+      return
+    }
+    setReference(data)
+    setRestamping(false)
+    setCarriedStamp(null)
+    setManualStampTypes(["ref", "date"])
+    setPageSize(null)
+    autoAttempted.current = false
+    toast.success("Document removed")
+    router.refresh()
   }
 
   async function startRestamp() {
@@ -328,49 +359,103 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Details</CardTitle>
+          {canEdit && (
+            <Dialog open={editingDetails} onOpenChange={setEditingDetails}>
+              <DialogTrigger
+                render={
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDetailsDraft({
+                        refNumber: reference.refNumber,
+                        title: reference.title,
+                        registerDate: format(reference.registerDate, "yyyy-MM-dd"),
+                        picName: reference.picName,
+                        picEmployeeId: reference.picEmployeeId,
+                        picEmail: reference.picEmail,
+                      })
+                    }
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Edit details
+                  </button>
+                }
+              />
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit details</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Reference No.</p>
+                    <Input
+                      className="font-mono"
+                      value={detailsDraft.refNumber}
+                      onChange={(e) => setDetailsDraft((d) => ({ ...d, refNumber: e.target.value }))}
+                      disabled={savingDetails}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Title</p>
+                    <Input
+                      value={detailsDraft.title}
+                      onChange={(e) => setDetailsDraft((d) => ({ ...d, title: e.target.value }))}
+                      disabled={savingDetails}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Registered on</p>
+                    <Input
+                      type="date"
+                      value={detailsDraft.registerDate}
+                      onChange={(e) => setDetailsDraft((d) => ({ ...d, registerDate: e.target.value }))}
+                      disabled={savingDetails}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">PIC name</p>
+                    <Input
+                      value={detailsDraft.picName}
+                      onChange={(e) => setDetailsDraft((d) => ({ ...d, picName: e.target.value }))}
+                      disabled={savingDetails}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">PIC employee ID</p>
+                    <Input
+                      value={detailsDraft.picEmployeeId}
+                      onChange={(e) => setDetailsDraft((d) => ({ ...d, picEmployeeId: e.target.value }))}
+                      disabled={savingDetails}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">PIC email</p>
+                    <Input
+                      type="email"
+                      value={detailsDraft.picEmail}
+                      onChange={(e) => setDetailsDraft((d) => ({ ...d, picEmail: e.target.value }))}
+                      disabled={savingDetails}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={() => setEditingDetails(false)} disabled={savingDetails}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveDetails} disabled={savingDetails}>
+                      {savingDetails ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 text-sm">
           <div className="col-span-2">
             <p className="text-muted-foreground">Reference No.</p>
-            {isAdmin && editingRefNumber ? (
-              <div className="mt-1 flex items-center gap-2">
-                <Input
-                  className="font-mono"
-                  value={refNumberDraft}
-                  onChange={(e) => setRefNumberDraft(e.target.value)}
-                  disabled={savingRefNumber}
-                />
-                <Button size="sm" onClick={handleSaveRefNumber} disabled={savingRefNumber}>
-                  {savingRefNumber ? "Saving..." : "Save"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setEditingRefNumber(false)}
-                  disabled={savingRefNumber}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <p className="font-mono font-medium">{reference.refNumber}</p>
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRefNumberDraft(reference.refNumber)
-                      setEditingRefNumber(true)
-                    }}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Edit
-                  </button>
-                )}
-              </div>
-            )}
+            <p className="font-mono font-medium">{reference.refNumber}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Category</p>
@@ -434,6 +519,11 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
               ) : (
                 <p className="text-sm text-muted-foreground">Loading document…</p>
               )}
+              {canEdit && (
+                <Button variant="ghost" size="sm" onClick={handleRemoveFile} disabled={removingFile} className="justify-self-start text-destructive">
+                  {removingFile ? "Removing..." : "Remove file"}
+                </Button>
+              )}
             </>
           )}
 
@@ -468,6 +558,11 @@ export function ReferenceDetail({ initial }: { initial: Reference }) {
               <Button variant="ghost" size="sm" onClick={startRestamp}>
                 Re-stamp position
               </Button>
+              {canEdit && (
+                <Button variant="ghost" size="sm" onClick={handleRemoveFile} disabled={removingFile} className="text-destructive">
+                  {removingFile ? "Removing..." : "Remove file"}
+                </Button>
+              )}
             </div>
           )}
         </CardContent>

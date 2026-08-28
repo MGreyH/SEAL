@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma"
 
 /**
- * Allocates the next sequential reference number for a category+year and
+ * Allocates the lowest unused reference number for a category+year (filling
+ * gaps left by deleted references before continuing past the max) and
  * inserts the DocumentReference row in one transaction. The `FOR UPDATE`
- * row lock on the current max seqNumber serializes concurrent requests for
- * the same category+year so two simultaneous submissions can't collide.
+ * row lock on every existing row for that category+year serializes
+ * concurrent requests so two simultaneous submissions can't collide.
  */
 export async function allocateReference(input: {
   categoryId: string
@@ -24,11 +25,14 @@ export async function allocateReference(input: {
     const rows = await tx.$queryRaw<{ seqNumber: number }[]>`
       SELECT seqNumber FROM DocumentReference
       WHERE categoryId = ${input.categoryId} AND year = ${year}
-      ORDER BY seqNumber DESC
-      LIMIT 1
+      ORDER BY seqNumber ASC
       FOR UPDATE
     `
-    const nextSeq = (rows[0]?.seqNumber ?? 0) + 1
+    let nextSeq = 1
+    for (const row of rows) {
+      if (row.seqNumber !== nextSeq) break
+      nextSeq++
+    }
     const yy = String(year).slice(-2)
     const refNumber = `G7/${category.code}/${String(nextSeq).padStart(3, "0")}/${yy}`
 
