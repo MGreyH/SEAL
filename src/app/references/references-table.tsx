@@ -136,8 +136,8 @@ export function ReferencesTable({
   }
 
   return (
-    <div className="flex flex-col">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="flex min-w-0 flex-col">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             Document References
@@ -167,11 +167,11 @@ export function ReferencesTable({
         className="mb-4 max-w-md shrink-0"
       />
 
-      <Card className="flex flex-col">
+      <Card className="flex min-w-0 flex-col">
         <CardHeader className="shrink-0">
           <CardTitle className="text-base">All references</CardTitle>
         </CardHeader>
-        <CardContent className="max-h-[calc(100vh-19rem)] overflow-y-auto">
+        <CardContent className="max-h-[calc(100vh-19rem)] overflow-y-auto overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

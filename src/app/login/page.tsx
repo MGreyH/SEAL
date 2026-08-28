@@ -42,7 +42,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8">
+    <div className="relative flex min-h-screen items-center justify-center overflow-y-auto px-4 py-8">
       {/* TODO: swap in a real background image at public/login-bg.jpg */}
       <Image
         src="/login-bg.jpg"
@@ -57,9 +57,9 @@ export default function LoginPage() {
         }}
       />
 
-      <div className="grid w-full max-w-4xl overflow-hidden rounded-2xl border shadow-lg md:grid-cols-2">
+      <div className="my-auto grid w-full max-w-4xl overflow-hidden rounded-2xl border shadow-lg md:grid-cols-2">
         {/* Left panel */}
-        <div className="flex flex-col justify-between bg-sidebar p-8 text-sidebar-foreground">
+        <div className="flex flex-col justify-between bg-sidebar p-6 text-sidebar-foreground md:p-8">
           <div>
             <Logo variant="dark" />
             <h1 className="mt-6 text-2xl font-bold tracking-tight">
@@ -71,7 +71,7 @@ export default function LoginPage() {
               references.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3">
+            <div className="mt-8 hidden flex-col gap-3 md:flex">
               {FEATURES.map((f) => (
                 <div
                   key={f.title}
@@ -96,7 +96,7 @@ export default function LoginPage() {
         </div>
 
         {/* Right panel */}
-        <div className="flex flex-col justify-center bg-card p-8">
+        <div className="flex flex-col justify-center bg-card p-6 md:p-8">
           <h2 className="text-xl font-bold tracking-tight">Welcome Back!</h2>
           <p className="mb-6 text-sm text-muted-foreground">
             Please sign in to your account
