@@ -1,15 +1,37 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
 import { toast } from "sonner"
+import { Briefcase, TrendingUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Logo } from "@/components/logo"
+
+const FEATURES = [
+  {
+    icon: Briefcase,
+    color: "bg-primary",
+    title: "Track References Efficiently",
+    desc: "Register, stamp, and manage document references on time.",
+  },
+  {
+    icon: TrendingUp,
+    color: "bg-chart-3",
+    title: "Monitor Progress in Real-time",
+    desc: "Get real-time insights and reporting.",
+  },
+  {
+    icon: Users,
+    color: "bg-chart-4",
+    title: "Collaborate with Your Team",
+    desc: "Work together and achieve more.",
+  },
+]
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,14 +42,66 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/5 via-background to-background px-4">
-      <Card className="w-full max-w-sm shadow-lg">
-        <CardHeader className="items-center text-center">
-          <Logo className="mb-2 justify-center flex" />
-          <CardTitle>Sign in</CardTitle>
-          <CardDescription>SEAL — System for E-document Allocation and Logging</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8">
+      {/* TODO: swap in a real background image at public/login-bg.jpg */}
+      <Image
+        src="/login-bg.jpg"
+        alt=""
+        aria-hidden
+        fill
+        priority
+        sizes="100vw"
+        className="-z-10 object-cover"
+        onError={(e) => {
+          e.currentTarget.style.display = "none"
+        }}
+      />
+
+      <div className="grid w-full max-w-4xl overflow-hidden rounded-2xl border shadow-lg md:grid-cols-2">
+        {/* Left panel */}
+        <div className="flex flex-col justify-between bg-sidebar p-8 text-sidebar-foreground">
+          <div>
+            <Logo variant="dark" />
+            <h1 className="mt-6 text-2xl font-bold tracking-tight">
+              Register. Stamp. Deliver.
+            </h1>
+            <p className="mt-2 text-sm text-sidebar-foreground/70">
+              SEAL — System for E-document Allocation and Logging. An
+              integrated platform to manage, track, and log document
+              references.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3">
+              {FEATURES.map((f) => (
+                <div
+                  key={f.title}
+                  className="flex items-start gap-3 rounded-lg bg-sidebar-accent/60 p-3"
+                >
+                  <div className={`shrink-0 rounded-md ${f.color} p-2 text-primary-foreground`}>
+                    <f.icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{f.title}</p>
+                    <p className="text-xs text-sidebar-foreground/60">{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* TODO: add G7 Marine / G7 Aerospace partner logos to public/ and render here */}
+          <p className="mt-8 text-xs text-sidebar-foreground/50 text-center">
+            © {new Date().getFullYear()} G7 Group of Companies. All rights reserved.
+          </p>
+        </div>
+
+        {/* Right panel */}
+        <div className="flex flex-col justify-center bg-card p-8">
+          <h2 className="text-xl font-bold tracking-tight">Welcome Back!</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            Please sign in to your account
+          </p>
+
           <Tabs defaultValue="guest">
             <TabsList className="w-full">
               <TabsTrigger value="guest" className="flex-1">
@@ -44,8 +118,8 @@ export default function LoginPage() {
               <AdminLoginForm onSuccess={goHome} />
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }
@@ -85,7 +159,7 @@ function GuestLoginForm({ onSuccess }: { onSuccess: () => void }) {
         </p>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Signing in..." : "Continue as guest"}
+        {loading ? "Signing in..." : "Sign In"}
       </Button>
     </form>
   )

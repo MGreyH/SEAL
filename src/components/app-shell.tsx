@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
-import { LayoutDashboard, FileText, PlusCircle, LogOut } from "lucide-react"
+import { LayoutDashboard, FileText, LogOut } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -17,16 +17,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ...(role === "ADMIN"
       ? [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }]
       : []),
-    { href: "/references", label: "References", icon: FileText },
-    { href: "/references/new", label: "New Reference", icon: PlusCircle },
+    { href: "/references", label: "Document References", icon: FileText },
+    // { href: "/references/new", label: "New Reference", icon: PlusCircle },
   ]
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="hidden w-64 shrink-0 flex-col justify-between bg-sidebar text-sidebar-foreground md:flex">
-        <div >
-          <div className="px-5 py-5">
+      <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+        <div>
+          <div className="border-b border-sidebar-border px-5 py-5">
             <Logo variant="dark" className="flex justify-center items-center"/>
+            <div className="mt-2 text-center text-sm font-medium text-sidebar-foreground/80">
+              System for E-Document Allocation and Logging (SEAL)
+            </div>
           </div>
           <nav className="mt-4 flex flex-col gap-1 px-3">
             {links.map((link) => {
@@ -37,10 +40,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    "flex items-center gap-2 rounded-md border-l-2 px-3 py-2 text-sm font-medium transition-colors",
                     active
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      ? "border-l-primary bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "border-l-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -50,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
         </div>
-        <div className="px-5 py-4">
+        <div className="border-t border-sidebar-border px-5 py-4">
           <p className="truncate text-xs text-sidebar-foreground/60">
             {session?.user?.email}
           </p>

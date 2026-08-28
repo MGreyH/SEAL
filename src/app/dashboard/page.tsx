@@ -61,7 +61,7 @@ export default async function DashboardPage() {
         <StatCard label="Total references" value={total} icon={<FileText className="h-5 w-5" />} />
         <StatCard label="Stamped" value={stamped} icon={<Stamp className="h-5 w-5" />} accent="bg-chart-4" />
         <StatCard label="Sent to PIC" value={sent} icon={<Send className="h-5 w-5" />} accent="bg-chart-2" />
-        <StatCard label="Guest users" value={guestCount} icon={<Users className="h-5 w-5" />} accent="bg-chart-3" />
+        <StatCard label="Employee users" value={guestCount} icon={<Users className="h-5 w-5" />} accent="bg-chart-3" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

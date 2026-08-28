@@ -207,7 +207,7 @@ export function ReferencesTable({
             </TableHeader>
             <TableBody>
               {displayed.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className="hover:bg-muted/50">
                   <TableCell>
                     <input
                       type="checkbox"
@@ -228,7 +228,9 @@ export function ReferencesTable({
                   <TableCell>{r.picName}</TableCell>
                   <TableCell>{format(r.registerDate, "dd/MM/yyyy")}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[r.status]}>{r.status}</Badge>
+                    <Badge variant={statusVariant[r.status]} className="rounded-full font-semibold">
+                      {r.status}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}

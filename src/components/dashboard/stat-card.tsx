@@ -48,7 +48,12 @@ export function StatCard({
           <p className="text-sm text-muted-foreground">{label}</p>
           <p className="text-3xl font-semibold tracking-tight">{display}</p>
         </div>
-        <div className="rounded-full bg-primary/10 p-3 text-primary">
+        <div
+          className={cn(
+            "rounded-lg p-3 text-primary-foreground",
+            accent ?? "bg-primary"
+          )}
+        >
           {icon}
         </div>
       </CardContent>
