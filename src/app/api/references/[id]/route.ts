@@ -42,9 +42,14 @@ export async function PATCH(
     }
   }
 
+  const data: typeof parsed.data & { seqNumber?: null } = { ...parsed.data }
+  if (parsed.data.refNumber && parsed.data.refNumber !== reference.refNumber) {
+    data.seqNumber = null
+  }
+
   const updated = await prisma.documentReference.update({
     where: { id },
-    data: parsed.data,
+    data,
     include: { category: true },
   })
 

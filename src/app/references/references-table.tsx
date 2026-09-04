@@ -17,7 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PlusCircle, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { PlusCircle, Trash2, ArrowUp, ArrowDown, ArrowUpDown, Eye } from "lucide-react"
 
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
   REGISTERED: "outline",
@@ -32,6 +39,7 @@ type Reference = {
   picName: string
   registerDate: Date
   status: "REGISTERED" | "STAMPED" | "SENT"
+  stampedFilePath: string | null
 }
 
 type SortKey = "refNumber" | "title" | "picName" | "registerDate" | "status"
@@ -203,12 +211,17 @@ export function ReferencesTable({
                     </button>
                   </TableHead>
                 ))}
+                <TableHead className="w-20">Preview</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {displayed.map((r) => (
-                <TableRow key={r.id} className="hover:bg-muted/50">
-                  <TableCell>
+                <TableRow
+                  key={r.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => router.push(`/references/${r.id}`)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected.has(r.id)}
@@ -216,14 +229,7 @@ export function ReferencesTable({
                       aria-label={`Select ${r.refNumber}`}
                     />
                   </TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/references/${r.id}`}
-                      className="font-mono text-sm font-medium text-primary hover:underline"
-                    >
-                      {r.refNumber}
-                    </Link>
-                  </TableCell>
+                  <TableCell className="font-mono text-sm font-medium">{r.refNumber}</TableCell>
                   <TableCell className="max-w-xs truncate">{r.title}</TableCell>
                   <TableCell>{r.picName}</TableCell>
                   <TableCell>{format(r.registerDate, "dd/MM/yyyy")}</TableCell>
@@ -232,11 +238,34 @@ export function ReferencesTable({
                       {r.status}
                     </Badge>
                   </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {r.stampedFilePath && (
+                      <Dialog>
+                        <DialogTrigger
+                          render={
+                            <Button variant="ghost" size="icon" aria-label={`Preview ${r.refNumber}`}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          }
+                        />
+                        <DialogContent className="max-w-4xl sm:max-w-4xl">
+                          <DialogHeader>
+                            <DialogTitle className="font-mono">{r.refNumber}</DialogTitle>
+                          </DialogHeader>
+                          <iframe
+                            src={`/api/references/${r.id}/file?kind=stamped`}
+                            className="h-[75vh] w-full rounded-md border"
+                            title="Stamped document preview"
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {displayed.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     {references.length === 0
                       ? "No references yet. Create your first one."
                       : "No references match your search."}

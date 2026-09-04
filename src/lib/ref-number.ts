@@ -24,7 +24,7 @@ export async function allocateReference(input: {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ seqNumber: number }[]>`
       SELECT seqNumber FROM DocumentReference
-      WHERE categoryId = ${input.categoryId} AND year = ${year}
+      WHERE categoryId = ${input.categoryId} AND year = ${year} AND seqNumber IS NOT NULL
       ORDER BY seqNumber ASC
       FOR UPDATE
     `

@@ -9,8 +9,8 @@ declare global {
 const standardFontDataUrl =
   path.join(process.cwd(), "node_modules/pdfjs-dist/standard_fonts").replace(/\\/g, "/") + "/"
 
-const REF_LABEL = "our ref.:"
-const DATE_LABEL = "date:"
+const REF_LABELS = ["our ref.:", "rujukan kami:"]
+const DATE_LABELS = ["date:", "tarikh:"]
 const LINE_TOLERANCE = 2
 const DEFAULT_WIDTH = 200
 
@@ -28,7 +28,7 @@ export type LabelBox = {
  * the box spanning from the end of that label to the end of the line — i.e.
  * the region to erase and restamp. Returns null if the label isn't found.
  */
-function findLabelBox(lines: Item[][], label: string): LabelBox | null {
+function findLabelBox(lines: Item[][], labels: string[]): LabelBox | null {
   for (const line of lines) {
     let text = ""
     const offsets: number[] = []
@@ -38,21 +38,26 @@ function findLabelBox(lines: Item[][], label: string): LabelBox | null {
     }
     const lowerText = text.toLowerCase()
     let idx = -1
-    let searchFrom = 0
-    // require a word boundary before the match, e.g. "date:" must not match
-    // inside "Update:"
-    while (true) {
-      const found = lowerText.indexOf(label, searchFrom)
-      if (found === -1) break
-      if (found === 0 || !/[a-z]/.test(lowerText[found - 1])) {
-        idx = found
-        break
+    let matchedLabel = ""
+    for (const label of labels) {
+      let searchFrom = 0
+      // require a word boundary before the match, e.g. "date:" must not match
+      // inside "Update:"
+      while (true) {
+        const found = lowerText.indexOf(label, searchFrom)
+        if (found === -1) break
+        if (found === 0 || !/[a-z]/.test(lowerText[found - 1])) {
+          idx = found
+          matchedLabel = label
+          break
+        }
+        searchFrom = found + 1
       }
-      searchFrom = found + 1
+      if (idx !== -1) break
     }
     if (idx === -1) continue
 
-    const matchEnd = idx + label.length
+    const matchEnd = idx + matchedLabel.length
     let endX: number | null = null
     let fontSize = line[0].height
     let baseY = line[0].y
@@ -141,7 +146,7 @@ export async function scanForLabels(
   for (const line of lines) line.sort((a, b) => a.x - b.x)
 
   return {
-    ref: findLabelBox(lines, REF_LABEL),
-    date: findLabelBox(lines, DATE_LABEL),
+    ref: findLabelBox(lines, REF_LABELS),
+    date: findLabelBox(lines, DATE_LABELS),
   }
 }

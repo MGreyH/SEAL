@@ -45,7 +45,7 @@ model DocumentReference {
   categoryId String
   category   DocumentCategory @relation(fields: [categoryId], references: [id])
   year       Int
-  seqNumber  Int
+  seqNumber  Int?
   refNumber  String           @unique
 
   title        String
